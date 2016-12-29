@@ -1,0 +1,15 @@
+{
+  "name": "fis3-command-new",
+  "version": "0.0.3",
+  "description": "init a project , new a widget or page ",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "fis",
+    "fyg"
+  ],
+  "author": "yogo",
+  "license": "ISC"
+}
