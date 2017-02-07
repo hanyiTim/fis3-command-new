@@ -43,19 +43,46 @@ exports.run=function(argv,cli){
 
 	};
 	//判断文件或者文件夹是否存在
-	var fn_exists=function(path,errmsg,type){
+	/**
+	 * [fn_exists 判断文件是否存在]
+	 * @param  {[type]}   path     [description]
+	 * @param  {[type]}   errmsg   [description]
+	 * @param  {[type]}   type     [normal:false true:是否不存在，false:是否存在]
+	 * @param  {Function} callback [description]
+	 * @return {[type]}            [description]
+	 */
+	var fn_exists=function(path,errmsg,type,callback){
 		if(type){
 			if(!fis.util.isDir(path)){
-				fis.log.error(errmsg);
+				if(callback){
+					callback && callback.call && callback.call();
+				}else{
+				  fis.log.error(errmsg);
+				}
 			}
 		}else{
 			if(fis.util.isDir(path)){
-				fis.log.error(errmsg);
+				if(callback){
+					callback && callback.call && callback.call();
+				}else{
+				  fis.log.error(errmsg);
+				}
 			}
 		}
 
 	};
 	//读取文件
+	/**
+	 * [fn_read description]
+	 * @param  {[type]} opt [description]
+	 * {
+	 *     path:  文件所在目录
+	 *     tname  {
+	 *         "file key":"目标文件名"
+	 *     }
+	 * }
+	 * @return {[type]}     [description]
+	 */
 	var fn_read=function(opt){
 		var tname=opt.tname || {};
 		var temps={};
@@ -64,6 +91,13 @@ exports.run=function(argv,cli){
 		}
 		return temps;
 	};
+	/**
+	 * [fn_travel 目录结构拷贝]
+	 * @param  {[type]}   dir      [目标路径]
+	 * @param  {[type]}   dst      [拷贝路径]
+	 * @param  {Function} callback [如果 readdirSync 获取到的 file 是文件，则执行callback 并传 拷问文件路径，已经生产路径]
+	 * @return {[type]}            [description]
+	 */
 	var fn_travel=function(dir,dst,callback){
 		fs.readdirSync(dir).forEach(function(file){
 			var pathname=path.join(dir,file),
@@ -86,7 +120,9 @@ exports.run=function(argv,cli){
 	else if(argv.p){
 		var create_page=argv.p || argv.wap;
 		var temps;
-		fn_exists(ab_page_dir,ab_page_dir+" is not a dir",true);
+		fn_exists(ab_page_dir,ab_page_dir+" is not a dir",true,function(){
+			fs.mkdirSync(ab_page_dir);
+		});
 		//获取 page 内容
 		temps=fn_read({
 			path:path.join(ab_temp_dir,"/page/"),
@@ -123,7 +159,7 @@ exports.run=function(argv,cli){
 			}
 		});
 
-		fn_exists(path.join(ab_widget_dir,argv.w),"widget '" + create_widget + "' has existed");
+		fn_exists(path.join(ab_widget_dir,argv.w),"widget '" + create + "' has existed");
 
 		//widget 已存在 return false
 		fn_create({
@@ -137,6 +173,7 @@ exports.run=function(argv,cli){
 			fs.exists(despath,function(exists){
 				console.log(despath,exists);
 				if(!exists){
+					//这里之所以用 createReadStream 跟 createWriteStream 来拷贝文件
 					fs.createReadStream(pathname).pipe(fs.createWriteStream(despath));
 				}
 			});
