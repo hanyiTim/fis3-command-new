@@ -6,6 +6,10 @@ var path=require("path");
 var fs=require("fs");
 var cc_process_cwd=process.cwd();
 
+var temp_dir = 'template/vuejs'
+if(fis.util.isFile(path.join(__dirname,'temp_version.conf'))){
+	temp_dir = fis.util.read(path.join(__dirname,'temp_version.conf'));
+}
 /**
  * process.cwd()  获取执行node 命令的目录
  */
@@ -15,7 +19,7 @@ var page_dir=fyg_conf["page_dir"] || "page/";
 
 var ab_widget_dir=path.join(cc_process_cwd,widget_dir);
 var ab_page_dir=path.join(cc_process_cwd,page_dir);
-var ab_temp_dir=path.join(__dirname,"template/");
+var ab_temp_dir=path.join(__dirname,temp_dir);
 
 exports.name='new';
 exports.desc='new widget or page';
@@ -24,8 +28,11 @@ exports.options={
 	"-w":"new vue widget,and widget name",
 	"-p":"new page,and page name",
 	"-i":"init project",
+	"--set":"set temp version",
+	"--get":"get temp version infomation",
 	"--type":"page type,and normal || wap"
 };
+
 exports.run=function(argv,cli){
 	//新建 page  或者 widget
 	var fn_create=function(opt){
@@ -43,46 +50,19 @@ exports.run=function(argv,cli){
 
 	};
 	//判断文件或者文件夹是否存在
-	/**
-	 * [fn_exists 判断文件是否存在]
-	 * @param  {[type]}   path     [description]
-	 * @param  {[type]}   errmsg   [description]
-	 * @param  {[type]}   type     [normal:false true:是否不存在，false:是否存在]
-	 * @param  {Function} callback [description]
-	 * @return {[type]}            [description]
-	 */
-	var fn_exists=function(path,errmsg,type,callback){
+	var fn_exists=function(path,errmsg,type){
 		if(type){
 			if(!fis.util.isDir(path)){
-				if(callback){
-					callback && callback.call && callback.call();
-				}else{
-				  fis.log.error(errmsg);
-				}
+				fis.log.notice(errmsg);
 			}
 		}else{
 			if(fis.util.isDir(path)){
-				if(callback){
-					callback && callback.call && callback.call();
-				}else{
-				  fis.log.error(errmsg);
-				}
+				fis.log.notice(errmsg);
 			}
 		}
 
 	};
 	//读取文件
-	/**
-	 * [fn_read description]
-	 * @param  {[type]} opt [description]
-	 * {
-	 *     path:  文件所在目录
-	 *     tname  {
-	 *         "file key":"目标文件名"
-	 *     }
-	 * }
-	 * @return {[type]}     [description]
-	 */
 	var fn_read=function(opt){
 		var tname=opt.tname || {};
 		var temps={};
@@ -91,13 +71,6 @@ exports.run=function(argv,cli){
 		}
 		return temps;
 	};
-	/**
-	 * [fn_travel 目录结构拷贝]
-	 * @param  {[type]}   dir      [目标路径]
-	 * @param  {[type]}   dst      [拷贝路径]
-	 * @param  {Function} callback [如果 readdirSync 获取到的 file 是文件，则执行callback 并传 拷问文件路径，已经生产路径]
-	 * @return {[type]}            [description]
-	 */
 	var fn_travel=function(dir,dst,callback){
 		fs.readdirSync(dir).forEach(function(file){
 			var pathname=path.join(dir,file),
@@ -114,27 +87,65 @@ exports.run=function(argv,cli){
 			}
 		});
 	};
+	var fn_getTemps=function(pathname,compare){
+		let tempdir=fs.readdirSync(pathname);
+		let obj={};
+		tempdir.map((item) => {
+			if(item){
+				let match=/^([\w\-]*?)\.([\w\-]*?)$/gi.exec(item);
+				if(match[2] &&(!compare || compare(match))){
+					obj[match[2]]=match[0];
+				}
+			}
+		});
+		return obj;
+	}
 	if(argv.h || argv.help){
 		return cli.help(exports.name,exports.options);
 	}
+	else if(argv.set && argv.set !== true){
+		if(fis.util.isDir(path.join(__dirname,'template',argv.set))){
+			fis.util.write(path.join(__dirname,'temp_version.conf'),path.join('/template',argv.set),'utf-8');
+			fis.log.notice(`set temp version success   ╮(╯▽╰)╭`);
+		}else{
+			fis.log.notice(`can't found dir : ${path.join(__dirname,'template',argv.set)}`);
+			fis.log.notice(`set temp version fail  ╮(╯Д╰)╭`);
+		}
+	}
+	else if(argv.get){
+		let tempList=fs.readdirSync(path.join(__dirname,'template'));
+		console.log("list:",tempList);
+		tempList.map((item) => {
+			if(new RegExp(item,'gi').test(temp_dir)){
+				item=`> ${item}\n`;
+				console.log(item);
+			}
+		});
+	}
 	else if(argv.p){
+		let compare;
+		if(argv.type!=="wap"){
+			compare=function(match){
+				if(/wap/gi.test(match[0])){
+					return false;
+				}else{
+					return true;
+				}
+			}
+		}
+		let tempdir_obj=fn_getTemps(path.join(ab_temp_dir,"/page/"),compare);
+		console.log(tempdir_obj);
 		var create_page=argv.p || argv.wap;
 		var temps;
-		fn_exists(ab_page_dir,ab_page_dir+" is not a dir",true,function(){
-			fs.mkdirSync(ab_page_dir);
-		});
+		fn_exists(ab_page_dir,ab_page_dir+" is not a dir╮(╯Д╰)╭",true);
 		//获取 page 内容
 		temps=fn_read({
 			path:path.join(ab_temp_dir,"/page/"),
-			tname:{
-				html:argv.type=="wap"?"temp_wap.html":"temp.html",
-				scss:"temp.scss",
-				js:"temp.js"
-			}
+			tname:tempdir_obj
 		});
 
 		//page 已存在 return false	
-		fn_exists(path.join(ab_page_dir,argv.p),"page '" + create_page + "' has existed");
+		fn_exists(path.join(ab_page_dir,argv.p),"page '" + create_page + "' has existed╮(╯Д╰)╭");
 
 		fn_create({
 			name:create_page,
@@ -146,20 +157,17 @@ exports.run=function(argv,cli){
 	else if(argv.w){
 		var create_widget=argv.w;
 		var temps={};
+		let tempdir_obj=fn_getTemps(path.join(ab_temp_dir,"/widget/"));
 
-		fn_exists(ab_widget_dir,ab_widget_dir+" is not a dir",true);
+		fn_exists(ab_widget_dir,ab_widget_dir+" is not a dir╮(╯Д╰)╭",true);
 
 		//获取 weidget 模板内容
 		temps=fn_read({
 			path:path.join(ab_temp_dir,"/widget/"),
-			tname:{
-				html:"temp.html",
-				scss:"temp.scss",
-				js:"temp.js"
-			}
+			tname:tempdir_obj
 		});
 
-		fn_exists(path.join(ab_widget_dir,argv.w),"widget '" + create + "' has existed");
+		fn_exists(path.join(ab_widget_dir,argv.w),"widget '" + create_widget + "' has existed╮(╯Д╰)╭");
 
 		//widget 已存在 return false
 		fn_create({
@@ -173,7 +181,6 @@ exports.run=function(argv,cli){
 			fs.exists(despath,function(exists){
 				console.log(despath,exists);
 				if(!exists){
-					//这里之所以用 createReadStream 跟 createWriteStream 来拷贝文件
 					fs.createReadStream(pathname).pipe(fs.createWriteStream(despath));
 				}
 			});
